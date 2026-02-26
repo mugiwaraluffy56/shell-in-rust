@@ -24,6 +24,10 @@ jobs:
             target: x86_64-unknown-linux-musl
             artifact: rsh-linux-x86_64
             ext: ""
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            artifact: rsh-linux-arm64
+            ext: ""
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact: rsh-macos-x86_64
@@ -47,7 +51,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install musl tools (Linux)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
+        if: contains(matrix.target, 'linux-musl')
         run: sudo apt-get install -y musl-tools
 
       - run: cargo build --release --target ${{ matrix.target }}
