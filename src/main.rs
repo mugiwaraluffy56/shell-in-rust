@@ -1,107 +1,78 @@
-#[allow(unused_imports)]
-use std::io::{self, Write};
-use std::{env};
-// use std::os::unix::fs::PermissionsExt;
-#[cfg(unix)]
-use std::process::Command;
+mod builtins;
+mod completer;
+mod executor;
+mod lexer;
+mod parser;
+mod prompt;
+mod shell;
 
-enum Commands {
-    Echo(Vec<String>),
-    Type(String),
-    Exit,
-    Unknown(String),
-    Clear,
-    Cd(String),
-    Pwd,
+use std::env;
+use std::path::PathBuf;
+
+use rustyline::error::ReadlineError;
+use rustyline::history::DefaultHistory;
+use rustyline::{CompletionType, Config, Editor};
+
+use completer::{collect_path_commands, ShellHelper};
+use shell::Shell;
+
+fn history_path() -> PathBuf {
+    env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join(".shell_history")
 }
 
 fn main() {
+    let mut shell = Shell::new();
+
+    let path_commands = collect_path_commands();
+    let helper = ShellHelper::new(path_commands);
+
+    let config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .build();
+
+    let mut rl: Editor<ShellHelper, DefaultHistory> =
+        Editor::with_config(config).expect("failed to init editor");
+    rl.set_helper(Some(helper));
+
+    let hist = history_path();
+    let _ = rl.load_history(&hist);
 
     loop {
-        let output = Command::new("git")
-            .args(["rev-parse", "--abbrev-ref", "HEAD"])
-            .output()
-            .expect("Failed to execute git command");
-        let branch = String::from_utf8_lossy(&output.stdout);
+        let prompt = prompt::build();
 
-        match env::current_dir() {
-            Ok(value) => print!("~ \x1b[34m{}\x1b[0m", value.file_name().unwrap().to_string_lossy()),
-            Err(_) => print!("/"),
-        }
-        print!(" git:(\x1b[31m{}\x1b[0m) $ ", branch.trim());
-        io::stdout().flush().unwrap();
-        let mut input = String::new(); 
-        io::stdin().read_line(&mut input).unwrap();
-        let args = input.trim().split_whitespace().collect::<Vec<&str>>();
-
-        // let mut command = String::new();
-        // io::stdin().read_line(&mut command).unwrap();
-        // println!("{}: command not found", command.trim());
-
-        let command = match args.as_slice() {
-            ["exit"] => Commands::Exit,
-            ["echo", msg @ ..] => {
-                Commands::Echo(msg.iter().map(|s| s.to_string()).collect())
-
-            }
-            ["type", cmd] => Commands::Type(cmd.to_string()),
-            ["clear"] => Commands::Clear,
-            ["pwd"] => Commands::Pwd,
-            ["cd"] => {
-                let home = env::home_dir().unwrap_or_else(|| "/".into());
-                Commands::Cd(home.to_string_lossy().to_string())
-            },
-            ["cd", path] => Commands::Cd(path.to_string()),
-            [cmd, ..] => Commands::Unknown(cmd.to_string()),
-            [] => continue,
-        };
-
-        match command {
-            Commands::Exit => {
-                println!("Session exited successfully!");
-                break;
-            },
-
-            Commands::Echo(msg) => {
-                println!("{}", msg.join(" "))
-            }
-
-            Commands::Type(cmd) => {
-                if ["exit", "echo", "type"].contains(&cmd.as_str()) {
-                    println!("{} is a shell builtin", cmd);
+        match rl.readline(&prompt) {
+            Ok(line) => {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
                     continue;
                 }
-            }
-            Commands::Unknown(cmd) => {
-                println!("{}: command not found", cmd);
-            }
-            
-            Commands::Clear => {
-                Command::new("clear")
-                    .status()
-                    .unwrap();
-            }
+                rl.add_history_entry(trimmed).ok();
 
-            Commands::Cd(path) => {
-                let target_dir = if path.starts_with("~") {
-                    let home = env::home_dir().unwrap_or_else(|| "/".into());
-                    home.join(&path[1..])
-                } else {
-                    path.into()
-                };
+                let tokens = lexer::tokenize(trimmed, shell.last_exit_code);
+                let list = parser::parse(tokens);
 
-                if let Err(e) = env::set_current_dir(&target_dir) {
-                    eprintln!("cd: {}: {}", target_dir.display(), e);
+                if !executor::run_list(list, &mut shell) {
+                    break;
                 }
             }
-
-            Commands::Pwd => {
-                match env::current_dir() {
-                    Ok(value) => println!("{} ", value.display()),
-                    Err(_) => print!("/"),
-                }
+            Err(ReadlineError::Interrupted) => {
+                println!("^C");
+                continue;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("exit");
+                break;
+            }
+            Err(e) => {
+                eprintln!("error: {:?}", e);
+                break;
             }
         }
-        
     }
+
+    rl.save_history(&hist).ok();
 }
