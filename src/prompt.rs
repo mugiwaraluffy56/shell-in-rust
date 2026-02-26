@@ -21,7 +21,6 @@ pub fn build() -> String {
 }
 
 /// Colored prompt — returned from highlight_prompt() for display only.
-#[cfg(not(windows))]
 pub fn build_colored() -> String {
     let cwd = cwd();
     match git_branch() {
@@ -31,11 +30,6 @@ pub fn build_colored() -> String {
         ),
         None => format!("~ \x1b[34m{}\x1b[0m $ ", cwd),
     }
-}
-
-#[cfg(windows)]
-pub fn build_colored() -> String {
-    build()
 }
 
 fn git_branch() -> Option<String> {
