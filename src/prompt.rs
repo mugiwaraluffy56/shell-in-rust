@@ -10,6 +10,13 @@ pub fn build() -> String {
         })
         .unwrap_or_else(|_| "/".to_string());
 
+    #[cfg(windows)]
+    return match git_branch() {
+        Some(branch) => format!("~ {} git:({}) $ ", cwd, branch),
+        None => format!("~ {} $ ", cwd),
+    };
+
+    #[cfg(not(windows))]
     match git_branch() {
         Some(branch) => format!(
             "~ \x01\x1b[34m\x02{}\x01\x1b[0m\x02 git:(\x01\x1b[31m\x02{}\x01\x1b[0m\x02) $ ",
