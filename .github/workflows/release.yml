@@ -14,14 +14,21 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             artifact: rsh-linux-x86_64
+            ext: ""
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact: rsh-macos-x86_64
+            ext: ""
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: rsh-macos-arm64
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: rsh-windows-x86_64.exe
+            ext: ".exe"
 
     runs-on: ${{ matrix.os }}
 
@@ -32,9 +39,14 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install musl tools (Linux)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+
       - run: cargo build --release --target ${{ matrix.target }}
 
-      - run: cp target/${{ matrix.target }}/release/rsh ${{ matrix.artifact }}
+      - run: cp target/${{ matrix.target }}/release/rsh${{ matrix.ext }} ${{ matrix.artifact }}
+        shell: bash
 
       - uses: softprops/action-gh-release@v2
         with:
