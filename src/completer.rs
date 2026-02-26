@@ -11,12 +11,13 @@ use crate::builtins::BUILTINS;
 
 pub struct ShellHelper {
     pub path_commands: Vec<String>,
+    pub colored_prompt: String,
     file_completer: FilenameCompleter,
 }
 
 impl ShellHelper {
     pub fn new(path_commands: Vec<String>) -> Self {
-        Self { path_commands, file_completer: FilenameCompleter::new() }
+        Self { path_commands, colored_prompt: String::new(), file_completer: FilenameCompleter::new() }
     }
 }
 
@@ -69,10 +70,10 @@ impl Helper for ShellHelper {}
 impl Highlighter for ShellHelper {
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
-        prompt: &'p str,
+        _prompt: &'p str,
         _default: bool,
     ) -> Cow<'b, str> {
-        Cow::Borrowed(prompt)
+        Cow::Owned(self.colored_prompt.clone())
     }
 
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {

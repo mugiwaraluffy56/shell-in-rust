@@ -1,29 +1,41 @@
 use std::env;
 use std::process::{Command, Stdio};
 
-pub fn build() -> String {
-    let cwd = env::current_dir()
+fn cwd() -> String {
+    env::current_dir()
         .map(|p| {
             p.file_name()
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "/".to_string())
         })
-        .unwrap_or_else(|_| "/".to_string());
+        .unwrap_or_else(|_| "/".to_string())
+}
 
-    #[cfg(windows)]
-    return match git_branch() {
+/// Plain-text prompt — passed to readline() for correct width calculation.
+pub fn build() -> String {
+    let cwd = cwd();
+    match git_branch() {
         Some(branch) => format!("~ {} git:({}) $ ", cwd, branch),
         None => format!("~ {} $ ", cwd),
-    };
+    }
+}
 
-    #[cfg(not(windows))]
+/// Colored prompt — returned from highlight_prompt() for display only.
+#[cfg(not(windows))]
+pub fn build_colored() -> String {
+    let cwd = cwd();
     match git_branch() {
         Some(branch) => format!(
-            "~ \x01\x1b[34m\x02{}\x01\x1b[0m\x02 git:(\x01\x1b[31m\x02{}\x01\x1b[0m\x02) $ ",
+            "~ \x1b[34m{}\x1b[0m git:(\x1b[31m{}\x1b[0m) $ ",
             cwd, branch
         ),
-        None => format!("~ \x01\x1b[34m\x02{}\x01\x1b[0m\x02 $ ", cwd),
+        None => format!("~ \x1b[34m{}\x1b[0m $ ", cwd),
     }
+}
+
+#[cfg(windows)]
+pub fn build_colored() -> String {
+    build()
 }
 
 fn git_branch() -> Option<String> {

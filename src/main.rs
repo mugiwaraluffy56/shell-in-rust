@@ -31,7 +31,7 @@ fn history_path() -> PathBuf {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.get(1).map(String::as_str) == Some("--version") {
-        println!("rsh v0.1.1");
+        println!("rsh v0.1.2");
         return;
     }
 
@@ -54,6 +54,10 @@ fn main() {
 
     loop {
         let prompt = prompt::build();
+        let colored = prompt::build_colored();
+        if let Some(h) = rl.helper_mut() {
+            h.colored_prompt = colored;
+        }
 
         match rl.readline(&prompt) {
             Ok(line) => {
