@@ -2,6 +2,10 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::{env};
+use std::fs::metadata;
+// use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 enum Commands {
     Echo(Vec<String>),
@@ -9,7 +13,6 @@ enum Commands {
     Exit,
     Unknown(String),
 }
-
 
 fn main() {
 
@@ -40,19 +43,49 @@ fn main() {
         };
 
         match command {
-            Commands::Exit => break,
+            Commands::Exit => {
+                println!("Session exited successfully!");
+                break;
+            },
 
             Commands::Echo(msg) => {
                 println!("{}", msg.join(" "))
             }
 
-            Commands::Type(cmd) => match cmd.as_str() {
-                "exit" | "echo" | "type" => {
-                    println!("{} is a shell builtin", cmd);
-                }
-                _ => println!("{}: not found", cmd),
-            },
+            // Commands::Type(cmd) => match cmd.as_str() {
+                // "exit" | "echo" | "type" => {
+                    // println!("{} is a shell builtin", cmd);
+                // }
+                // _ => println!("{}: not found", cmd),
+            // },
 
+            Commands::Type(cmd) => {
+                if ["exit", "echo", "type"].contains(&cmd.as_str()) {
+                    println!("{} is a shell builtin", cmd);
+                    continue;
+                }
+
+                if let Ok(path_var) = env::var("PATH") {
+                    let paths = env::split_paths(&path_var);
+
+                    for dir in paths {
+                        let full_path = dir.join(&cmd);
+
+                        if let Ok(metadata) = metadata(&full_path) {
+
+                            if metadata.is_file() {
+                                #[cfg(unix)]
+                                {
+                                    if metadata.permissions().mode() & 0o111 != 0 {
+                                        println!("{} is {}", cmd, full_path.display());
+                                    break;
+                                    }         
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Commands::Unknown(cmd) => {
                 println!("{}: command not found", cmd);
             }
