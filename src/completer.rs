@@ -44,11 +44,12 @@ impl Completer for ShellHelper {
             || before.ends_with(';');
 
         if is_cmd_pos && !word.contains('/') && !word.contains('\\') {
+            let word_lower = word.to_lowercase();
             let matches: Vec<Pair> = BUILTINS
                 .iter()
                 .map(|s| s.to_string())
                 .chain(self.path_commands.iter().cloned())
-                .filter(|cmd| cmd.starts_with(word))
+                .filter(|cmd| cmd.to_lowercase().starts_with(&word_lower))
                 .map(|cmd| Pair {
                     display: cmd.clone(),
                     replacement: format!("{} ", cmd),
