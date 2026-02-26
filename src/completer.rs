@@ -42,7 +42,7 @@ impl Completer for ShellHelper {
             || before.ends_with('|')
             || before.ends_with(';');
 
-        if is_cmd_pos && !word.contains('/') {
+        if is_cmd_pos && !word.contains('/') && !word.contains('\\') {
             let matches: Vec<Pair> = BUILTINS
                 .iter()
                 .map(|s| s.to_string())
@@ -102,7 +102,12 @@ pub fn collect_path_commands() -> Vec<String> {
     let path_var = std::env::var("PATH").unwrap_or_default();
     let mut cmds: Vec<String> = Vec::new();
 
-    for dir in path_var.split(':') {
+    #[cfg(windows)]
+    const PATH_SEP: char = ';';
+    #[cfg(not(windows))]
+    const PATH_SEP: char = ':';
+
+    for dir in path_var.split(PATH_SEP) {
         let Ok(entries) = fs::read_dir(dir) else { continue };
         for entry in entries.flatten() {
             let path = entry.path();
@@ -114,6 +119,16 @@ pub fn collect_path_commands() -> Vec<String> {
                 use std::os::unix::fs::PermissionsExt;
                 let Ok(meta) = entry.metadata() else { continue };
                 if meta.permissions().mode() & 0o111 == 0 {
+                    continue;
+                }
+            }
+            #[cfg(windows)]
+            {
+                let ext = path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                if !["exe", "bat", "cmd", "com"].contains(&ext.as_str()) {
                     continue;
                 }
             }

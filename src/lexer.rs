@@ -62,7 +62,9 @@ pub fn tokenize(input: &str, last_exit_code: i32) -> Vec<Token> {
                 current.push_str(&env::var(&name).unwrap_or_default());
             }
             '~' if !in_single && !in_double && current.is_empty() => {
-                let home = env::var("HOME").unwrap_or_else(|_| "~".to_string());
+                let home = env::var("HOME")
+                    .or_else(|_| env::var("USERPROFILE"))
+                    .unwrap_or_else(|_| "~".to_string());
                 current.push_str(&home);
             }
             '|' if !in_single && !in_double => {
@@ -115,9 +117,11 @@ pub fn tokenize(input: &str, last_exit_code: i32) -> Vec<Token> {
 }
 
 fn expand_tilde(s: &str) -> String {
-    if s == "~" || s.starts_with("~/") {
-        let home = env::var("HOME").unwrap_or_default();
-        format!("{}{}", home, &s[1..])
+    if s == "~" || s.starts_with("~/") || s.starts_with("~\\") {
+        let home = env::var("HOME")
+            .or_else(|_| env::var("USERPROFILE"))
+            .unwrap_or_default();
+        if s.len() > 1 { format!("{}{}", home, &s[1..]) } else { home }
     } else {
         s.to_string()
     }

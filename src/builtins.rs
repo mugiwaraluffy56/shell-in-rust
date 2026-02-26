@@ -2,6 +2,17 @@ use std::env;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+#[cfg(windows)]
+const PATH_SEP: char = ';';
+#[cfg(not(windows))]
+const PATH_SEP: char = ':';
+
+fn home_dir() -> Option<PathBuf> {
+    env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
 use crate::shell::Shell;
 
 pub const BUILTINS: &[&str] = &[
@@ -33,7 +44,7 @@ pub fn run(argv: &[String], shell: &mut Shell) -> i32 {
         Some("cd") => {
             let path = match argv.get(1) {
                 Some(p) => p.clone(),
-                None => env::var("HOME").unwrap_or_else(|_| "/".to_string()),
+                None => home_dir().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default(),
             };
             let target = resolve_path(&path);
             match env::set_current_dir(&target) {
@@ -42,8 +53,10 @@ pub fn run(argv: &[String], shell: &mut Shell) -> i32 {
             }
         }
         Some("clear") => {
-            print!("\x1b[2J\x1b[H");
-            io::stdout().flush().ok();
+            #[cfg(windows)]
+            { let _ = std::process::Command::new("cmd").args(["/c", "cls"]).status(); }
+            #[cfg(not(windows))]
+            { print!("\x1b[2J\x1b[H"); io::stdout().flush().ok(); }
             0
         }
         Some("export") => {
@@ -95,12 +108,12 @@ pub fn run(argv: &[String], shell: &mut Shell) -> i32 {
 }
 
 pub fn find_in_path(name: &str) -> Option<PathBuf> {
-    if name.contains('/') {
+    if name.contains('/') || name.contains('\\') {
         let p = PathBuf::from(name);
         return if p.is_file() { Some(p) } else { None };
     }
     let path_var = env::var("PATH").unwrap_or_default();
-    for dir in path_var.split(':') {
+    for dir in path_var.split(PATH_SEP) {
         let candidate = Path::new(dir).join(name);
         if candidate.is_file() {
             #[cfg(unix)]
@@ -116,14 +129,21 @@ pub fn find_in_path(name: &str) -> Option<PathBuf> {
             #[cfg(not(unix))]
             return Some(candidate);
         }
+        #[cfg(windows)]
+        {
+            let exe = Path::new(dir).join(format!("{}.exe", name));
+            if exe.is_file() {
+                return Some(exe);
+            }
+        }
     }
     None
 }
 
 fn resolve_path(path: &str) -> PathBuf {
-    if path == "~" || path.starts_with("~/") {
-        let home = env::var("HOME").unwrap_or_else(|_| "/".to_string());
-        PathBuf::from(format!("{}{}", home, &path[1..]))
+    if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
+        let home = home_dir().unwrap_or_else(|| PathBuf::from("/"));
+        if path.len() > 1 { home.join(&path[2..]) } else { home }
     } else {
         PathBuf::from(path)
     }

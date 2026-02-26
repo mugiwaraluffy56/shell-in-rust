@@ -16,10 +16,15 @@ use rustyline::{CompletionType, Config, Editor};
 use completer::{collect_path_commands, ShellHelper};
 use shell::Shell;
 
-fn history_path() -> PathBuf {
+fn home_dir() -> Option<PathBuf> {
     env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
+}
+
+fn history_path() -> PathBuf {
+    home_dir()
+        .unwrap_or_else(env::temp_dir)
         .join(".shell_history")
 }
 
