@@ -2,18 +2,25 @@ use std::fs::{File, OpenOptions};
 use std::process::{Command, Stdio};
 
 use crate::builtins;
-use crate::parser::{CommandList, Pipeline, SimpleCmd};
+use crate::parser::{CommandList, Pipeline, RunIf, SimpleCmd};
 use crate::shell::Shell;
 
 /// Run all pipelines in the list sequentially.
 /// Returns false if the shell should exit.
 pub fn run_list(list: CommandList, shell: &mut Shell) -> bool {
-    for pipeline in list {
-        let code = run_pipeline(pipeline, shell);
-        if code == -1 {
-            return false; // exit sentinel
+    for (pipeline, run_if) in list {
+        let should_run = match run_if {
+            RunIf::Always => true,
+            RunIf::OnSuccess => shell.last_exit_code == 0,
+            RunIf::OnFailure => shell.last_exit_code != 0,
+        };
+        if should_run {
+            let code = run_pipeline(pipeline, shell);
+            if code == -1 {
+                return false; // exit sentinel
+            }
+            shell.last_exit_code = code;
         }
-        shell.last_exit_code = code;
     }
     true
 }

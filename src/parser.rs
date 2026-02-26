@@ -12,32 +12,54 @@ pub struct SimpleCmd {
 /// A sequence of commands connected by pipes.
 pub type Pipeline = Vec<SimpleCmd>;
 
-/// A sequence of pipelines separated by semicolons.
-pub type CommandList = Vec<Pipeline>;
+/// How a pipeline is conditionally connected to the previous one.
+#[derive(Debug, Clone)]
+pub enum RunIf {
+    Always,    // first, or after ;
+    OnSuccess, // after &&
+    OnFailure, // after ||
+}
+
+/// A pipeline with its run condition.
+pub type CommandList = Vec<(Pipeline, RunIf)>;
 
 pub fn parse(tokens: Vec<Token>) -> CommandList {
     let mut list: CommandList = Vec::new();
     let mut pipeline: Pipeline = Vec::new();
     let mut cmd = SimpleCmd::default();
+    let mut run_if = RunIf::Always;
+
+    let flush_cmd = |cmd: &mut SimpleCmd, pipeline: &mut Pipeline| {
+        if !cmd.argv.is_empty() || cmd.stdin_file.is_some() {
+            pipeline.push(std::mem::take(cmd));
+        }
+    };
+
+    let flush_pipeline = |pipeline: &mut Pipeline, list: &mut CommandList, run_if: &mut RunIf, next: RunIf| {
+        if !pipeline.is_empty() {
+            list.push((std::mem::take(pipeline), std::mem::replace(run_if, next)));
+        } else {
+            *run_if = next;
+        }
+    };
 
     for token in tokens {
         match token {
             Token::Word(w) => cmd.argv.push(w),
             Token::Pipe => {
-                if !cmd.argv.is_empty() || cmd.stdin_file.is_some() {
-                    pipeline.push(cmd);
-                    cmd = SimpleCmd::default();
-                }
+                flush_cmd(&mut cmd, &mut pipeline);
             }
             Token::Semicolon => {
-                if !cmd.argv.is_empty() || cmd.stdin_file.is_some() {
-                    pipeline.push(cmd);
-                    cmd = SimpleCmd::default();
-                }
-                if !pipeline.is_empty() {
-                    list.push(pipeline);
-                    pipeline = Vec::new();
-                }
+                flush_cmd(&mut cmd, &mut pipeline);
+                flush_pipeline(&mut pipeline, &mut list, &mut run_if, RunIf::Always);
+            }
+            Token::And => {
+                flush_cmd(&mut cmd, &mut pipeline);
+                flush_pipeline(&mut pipeline, &mut list, &mut run_if, RunIf::OnSuccess);
+            }
+            Token::Or => {
+                flush_cmd(&mut cmd, &mut pipeline);
+                flush_pipeline(&mut pipeline, &mut list, &mut run_if, RunIf::OnFailure);
             }
             Token::RedirectOut(f) => {
                 cmd.stdout_file = Some(f);
@@ -53,11 +75,9 @@ pub fn parse(tokens: Vec<Token>) -> CommandList {
         }
     }
 
-    if !cmd.argv.is_empty() || cmd.stdin_file.is_some() {
-        pipeline.push(cmd);
-    }
+    flush_cmd(&mut cmd, &mut pipeline);
     if !pipeline.is_empty() {
-        list.push(pipeline);
+        list.push((pipeline, run_if));
     }
     list
 }

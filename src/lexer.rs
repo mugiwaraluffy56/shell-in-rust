@@ -5,6 +5,8 @@ pub enum Token {
     Word(String),
     Pipe,
     Semicolon,
+    And,                   // &&
+    Or,                    // ||
     RedirectOut(String),   // > file
     RedirectAppend(String), // >> file
     RedirectIn(String),    // < file
@@ -69,7 +71,21 @@ pub fn tokenize(input: &str, last_exit_code: i32) -> Vec<Token> {
             }
             '|' if !in_single && !in_double => {
                 flush(&mut current, &mut tokens);
-                tokens.push(Token::Pipe);
+                if chars.peek() == Some(&'|') {
+                    chars.next();
+                    tokens.push(Token::Or);
+                } else {
+                    tokens.push(Token::Pipe);
+                }
+            }
+            '&' if !in_single && !in_double => {
+                if chars.peek() == Some(&'&') {
+                    chars.next();
+                    flush(&mut current, &mut tokens);
+                    tokens.push(Token::And);
+                } else {
+                    current.push(c);
+                }
             }
             ';' if !in_single && !in_double => {
                 flush(&mut current, &mut tokens);

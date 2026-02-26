@@ -41,7 +41,9 @@ impl Completer for ShellHelper {
         let before = line[..word_start].trim();
         let is_cmd_pos = before.is_empty()
             || before.ends_with('|')
-            || before.ends_with(';');
+            || before.ends_with(';')
+            || before.ends_with("&&")
+            || before.ends_with("||");
 
         if is_cmd_pos && !word.contains('/') && !word.contains('\\') {
             let word_lower = word.to_lowercase();
