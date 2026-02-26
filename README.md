@@ -16,17 +16,17 @@ a basic unix shell written in rust for learning purposes
 
 **linux (no rust needed)**
 ```
-curl -L https://github.com/yourname/rsh/releases/latest/download/rsh-linux-x86_64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
+curl -L https://github.com/mugiwaraluffy56/shell-in-rust/releases/latest/download/rsh-linux-x86_64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
 ```
 
 **mac (apple silicon)**
 ```
-curl -L https://github.com/yourname/rsh/releases/latest/download/rsh-macos-arm64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
+curl -L https://github.com/mugiwaraluffy56/shell-in-rust/releases/latest/download/rsh-macos-arm64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
 ```
 
 **from source**
 ```
-git clone https://github.com/yourname/rsh && cd rsh && cargo install --path .
+git clone https://github.com/mugiwaraluffy56/shell-in-rust && cd rsh && cargo install --path .
 ```
 
 then just type `rsh`
