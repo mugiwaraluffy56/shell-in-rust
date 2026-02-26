@@ -15,8 +15,13 @@ fn home_dir() -> Option<PathBuf> {
 
 use crate::shell::Shell;
 
+#[cfg(not(windows))]
 pub const BUILTINS: &[&str] = &[
     "cd", "clear", "echo", "env", "exit", "export", "pwd", "type", "unset", "which",
+];
+#[cfg(windows)]
+pub const BUILTINS: &[&str] = &[
+    "cd", "clear", "echo", "env", "exit", "export", "ls", "pwd", "type", "unset", "which",
 ];
 
 pub fn is_builtin(name: &str) -> bool {
@@ -50,6 +55,19 @@ pub fn run(argv: &[String], shell: &mut Shell) -> i32 {
             match env::set_current_dir(&target) {
                 Ok(_) => 0,
                 Err(e) => { eprintln!("cd: {}: {}", target.display(), e); 1 }
+            }
+        }
+        #[cfg(windows)]
+        Some("ls") => {
+            let dir = argv.get(1).map(String::as_str).unwrap_or(".");
+            match std::fs::read_dir(dir) {
+                Ok(entries) => {
+                    for entry in entries.flatten() {
+                        println!("{}", entry.file_name().to_string_lossy());
+                    }
+                    0
+                }
+                Err(e) => { eprintln!("ls: {}: {}", dir, e); 1 }
             }
         }
         Some("clear") => {

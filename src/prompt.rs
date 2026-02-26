@@ -12,10 +12,10 @@ pub fn build() -> String {
 
     match git_branch() {
         Some(branch) => format!(
-            "~ \x1b[34m{}\x1b[0m git:(\x1b[31m{}\x1b[0m) $ ",
+            "~ \x01\x1b[34m\x02{}\x01\x1b[0m\x02 git:(\x01\x1b[31m\x02{}\x01\x1b[0m\x02) $ ",
             cwd, branch
         ),
-        None => format!("~ \x1b[34m{}\x1b[0m $ ", cwd),
+        None => format!("~ \x01\x1b[34m\x02{}\x01\x1b[0m\x02 $ ", cwd),
     }
 }
 

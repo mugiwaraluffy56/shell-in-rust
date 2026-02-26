@@ -41,15 +41,15 @@ fn spawn_single(cmd: &SimpleCmd) -> i32 {
         return 0;
     }
 
-    if builtins::find_in_path(&cmd.argv[0]).is_none() {
-        eprintln!("{}: command not found", cmd.argv[0]);
-        return 127;
-    }
+    let program = match builtins::find_in_path(&cmd.argv[0]) {
+        Some(p) => p,
+        None => { eprintln!("{}: command not found", cmd.argv[0]); return 127; }
+    };
 
     let stdin = make_stdin(&cmd.stdin_file);
     let stdout = make_stdout(&cmd.stdout_file, cmd.append);
 
-    match Command::new(&cmd.argv[0])
+    match Command::new(&program)
         .args(&cmd.argv[1..])
         .stdin(stdin)
         .stdout(stdout)
@@ -89,7 +89,16 @@ fn run_pipe_chain(pipeline: Pipeline) -> i32 {
             Stdio::piped()
         };
 
-        match Command::new(&cmd.argv[0])
+        let program = match builtins::find_in_path(&cmd.argv[0]) {
+            Some(p) => p,
+            None => {
+                eprintln!("{}: command not found", cmd.argv[0]);
+                for c in &mut children { c.wait().ok(); }
+                return 127;
+            }
+        };
+
+        match Command::new(&program)
             .args(&cmd.argv[1..])
             .stdin(stdin)
             .stdout(stdout)
@@ -103,7 +112,6 @@ fn run_pipe_chain(pipeline: Pipeline) -> i32 {
             }
             Err(e) => {
                 eprintln!("{}: {}", cmd.argv[0], e);
-                // Wait for already-spawned children before returning
                 for c in &mut children { c.wait().ok(); }
                 return 1;
             }
