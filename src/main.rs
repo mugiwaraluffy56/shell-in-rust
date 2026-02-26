@@ -11,7 +11,8 @@ enum Commands {
     Exit,
     Unknown(String),
     Clear,
-    // Cd(String),
+    Cd(String),
+    Pwd,
 }
 
 fn main() {
@@ -24,10 +25,10 @@ fn main() {
         let branch = String::from_utf8_lossy(&output.stdout);
 
         match env::current_dir() {
-            Ok(value) => print!("~ {}", value.file_name().unwrap().to_string_lossy()),
+            Ok(value) => print!("~ \x1b[34m{}\x1b[0m", value.file_name().unwrap().to_string_lossy()),
             Err(_) => print!("/"),
         }
-        print!(" git:(\x1b[34m{}\x1b[0m) $ ", branch.trim());
+        print!(" git:(\x1b[31m{}\x1b[0m) $ ", branch.trim());
         io::stdout().flush().unwrap();
         let mut input = String::new(); 
         io::stdin().read_line(&mut input).unwrap();
@@ -45,6 +46,12 @@ fn main() {
             }
             ["type", cmd] => Commands::Type(cmd.to_string()),
             ["clear"] => Commands::Clear,
+            ["pwd"] => Commands::Pwd,
+            ["cd"] => {
+                let home = env::home_dir().unwrap_or_else(|| "/".into());
+                Commands::Cd(home.to_string_lossy().to_string())
+            },
+            ["cd", path] => Commands::Cd(path.to_string()),
             [cmd, ..] => Commands::Unknown(cmd.to_string()),
             [] => continue,
         };
@@ -58,13 +65,6 @@ fn main() {
             Commands::Echo(msg) => {
                 println!("{}", msg.join(" "))
             }
-
-            // Commands::Type(cmd) => match cmd.as_str() {
-                // "exit" | "echo" | "type" => {
-                    // println!("{} is a shell builtin", cmd);
-                // }
-                // _ => println!("{}: not found", cmd),
-            // },
 
             Commands::Type(cmd) => {
                 if ["exit", "echo", "type"].contains(&cmd.as_str()) {
@@ -81,8 +81,27 @@ fn main() {
                     .status()
                     .unwrap();
             }
+
+            Commands::Cd(path) => {
+                let target_dir = if path.starts_with("~") {
+                    let home = env::home_dir().unwrap_or_else(|| "/".into());
+                    home.join(&path[1..])
+                } else {
+                    path.into()
+                };
+
+                if let Err(e) = env::set_current_dir(&target_dir) {
+                    eprintln!("cd: {}: {}", target_dir.display(), e);
+                }
+            }
+
+            Commands::Pwd => {
+                match env::current_dir() {
+                    Ok(value) => println!("{} ", value.display()),
+                    Err(_) => print!("/"),
+                }
+            }
         }
-    
         
     }
 }
