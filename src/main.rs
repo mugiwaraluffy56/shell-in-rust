@@ -1,4 +1,3 @@
-
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::{env};
@@ -6,22 +5,30 @@ use std::fs::metadata;
 // use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::process::Command;
 
 enum Commands {
     Echo(Vec<String>),
     Type(String),
     Exit,
     Unknown(String),
+    Clear,
 }
 
 fn main() {
 
     loop {
+        let output = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .output()
+            .expect("Failed to execute git command");
+        let branch = String::from_utf8_lossy(&output.stdout);
+
         match env::current_dir() {
-            Ok(value) => print!("{}", value.file_name().unwrap().to_string_lossy()),
+            Ok(value) => print!("~ {}", value.file_name().unwrap().to_string_lossy()),
             Err(_) => print!("/"),
         }
-        print!(" $ ");
+        print!(" git:(\x1b[34m{}\x1b[0m) $ ", branch.trim());
         io::stdout().flush().unwrap();
         let mut input = String::new(); 
         io::stdin().read_line(&mut input).unwrap();
@@ -38,6 +45,7 @@ fn main() {
 
             }
             ["type", cmd] => Commands::Type(cmd.to_string()),
+            ["clear"] => Commands::Clear,
             [cmd, ..] => Commands::Unknown(cmd.to_string()),
             [] => continue,
         };
@@ -89,6 +97,14 @@ fn main() {
             Commands::Unknown(cmd) => {
                 println!("{}: command not found", cmd);
             }
+            
+            Commands::Clear => {
+                Command::new("clear")
+                    .status()
+                    .unwrap();
+            }
         }
+    
+        
     }
 }
