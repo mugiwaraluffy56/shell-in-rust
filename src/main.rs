@@ -7,6 +7,7 @@ enum Commands {
     Echo(Vec<String>),
     Type(String),
     Exit,
+    Unknown(String),
 }
 
 
@@ -29,7 +30,32 @@ fn main() {
 
         let command = match args.as_slice() {
             ["exit"] => Commands::Exit,
-            
+            ["echo", msg @ ..] => {
+                Commands::Echo(msg.iter().map(|s| s.to_string()).collect())
+
+            }
+            ["type", cmd] => Commands::Type(cmd.to_string()),
+            [cmd, ..] => Commands::Unknown(cmd.to_string()),
+            [] => continue,
+        };
+
+        match command {
+            Commands::Exit => break,
+
+            Commands::Echo(msg) => {
+                println!("{}", msg.join(" "))
+            }
+
+            Commands::Type(cmd) => match cmd.as_str() {
+                "exit" | "echo" | "type" => {
+                    println!("{} is a shell builtin", cmd);
+                }
+                _ => println!("{}: not found", cmd),
+            },
+
+            Commands::Unknown(cmd) => {
+                println!("{}: command not found", cmd);
+            }
         }
     }
 }
