@@ -29,6 +29,12 @@ fn history_path() -> PathBuf {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--version") {
+        println!("rsh v0.1.1");
+        return;
+    }
+
     let mut shell = Shell::new();
 
     let path_commands = collect_path_commands();
