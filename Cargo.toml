@@ -1,7 +1,11 @@
 [package]
-name = "shell"
+name = "rsh"
 version = "0.1.0"
 edition = "2024"
+
+[[bin]]
+name = "rsh"
+path = "src/main.rs"
 
 [dependencies]
 rustyline = "14"

@@ -12,7 +12,26 @@ a basic unix shell written in rust for learning purposes
 - `$VAR` expansion, `~` expansion, quote handling
 - builtins: `cd`, `echo`, `pwd`, `clear`, `exit`, `export`, `unset`, `env`, `which`, `type`
 
-## running
+## install
+
+**linux (no rust needed)**
+```
+curl -L https://github.com/yourname/rsh/releases/latest/download/rsh-linux-x86_64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
+```
+
+**mac (apple silicon)**
+```
+curl -L https://github.com/yourname/rsh/releases/latest/download/rsh-macos-arm64 -o rsh && chmod +x rsh && sudo mv rsh /usr/local/bin/rsh
+```
+
+**from source**
+```
+git clone https://github.com/yourname/rsh && cd rsh && cargo install --path .
+```
+
+then just type `rsh`
+
+## running locally
 
 ```
 cargo run
